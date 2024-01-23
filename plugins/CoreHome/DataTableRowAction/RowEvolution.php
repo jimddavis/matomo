@@ -19,8 +19,8 @@ use Piwik\NumberFormatter;
 use Piwik\Period\Factory as PeriodFactory;
 use Piwik\Piwik;
 use Piwik\Plugins\API\Filter\DataComparisonFilter;
-use Piwik\Plugins\CoreVisualizations\Visualizations\Graph\Config As GraphConfig;
-use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Config As JqplotGraphConfig;
+use Piwik\Plugins\CoreVisualizations\Visualizations\Graph\Config as GraphConfig;
+use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Config as JqplotGraphConfig;
 use Piwik\Plugins\CoreVisualizations\Visualizations\JqplotGraph\Evolution as EvolutionViz;
 use Piwik\Url;
 use Piwik\ViewDataTable\Factory;
@@ -32,7 +32,6 @@ use Piwik\ViewDataTable\Manager as ViewDataTableManager;
  */
 class RowEvolution
 {
-
     /** The current site id */
     protected $idSite;
 
@@ -221,7 +220,8 @@ class RowEvolution
         // at this point the report data will reference the comparison series labels for the changed compare periods/dates. We don't
         // want to show this to users because they will not recognize the changed periods, so we have to replace them.
         if ($isComparing) {
-            $modifiedSeriesLabels = reset($report['reportData']->getDataTables())->getMetadata('comparisonSeries');
+            $dataTables = $report['reportData']->getDataTables();
+            $modifiedSeriesLabels = reset($dataTables)->getMetadata('comparisonSeries');
             $seriesMap = array_combine($modifiedSeriesLabels, $unmodifiedSeriesLabels);
 
             foreach ($report['metadata']['metrics'] as $key => $metricInfo) {

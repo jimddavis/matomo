@@ -127,6 +127,7 @@ __webpack_require__.r(__webpack_exports__);
 // EXPORTS
 __webpack_require__.d(__webpack_exports__, "Marketplace", function() { return /* reexport */ Marketplace; });
 __webpack_require__.d(__webpack_exports__, "LicenseKey", function() { return /* reexport */ LicenseKey; });
+__webpack_require__.d(__webpack_exports__, "ManageLicenseKey", function() { return /* reexport */ ManageLicenseKey; });
 __webpack_require__.d(__webpack_exports__, "GetNewPlugins", function() { return /* reexport */ GetNewPlugins; });
 __webpack_require__.d(__webpack_exports__, "GetNewPluginsAdmin", function() { return /* reexport */ GetNewPluginsAdmin; });
 __webpack_require__.d(__webpack_exports__, "GetPremiumFeatures", function() { return /* reexport */ GetPremiumFeatures; });
@@ -154,7 +155,7 @@ if (typeof window !== 'undefined') {
 // EXTERNAL MODULE: external {"commonjs":"vue","commonjs2":"vue","root":"Vue"}
 var external_commonjs_vue_commonjs2_vue_root_Vue_ = __webpack_require__("8bbf");
 
-// CONCATENATED MODULE: ./node_modules/@vue/cli-plugin-babel/node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/@vue/cli-plugin-babel/node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist/templateLoader.js??ref--6!./node_modules/@vue/cli-service/node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist??ref--0-1!./plugins/Marketplace/vue/src/Marketplace/Marketplace.vue?vue&type=template&id=1547a42f
+// CONCATENATED MODULE: ./node_modules/@vue/cli-plugin-babel/node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/@vue/cli-plugin-babel/node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist/templateLoader.js??ref--6!./node_modules/@vue/cli-service/node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist??ref--0-1!./plugins/Marketplace/vue/src/Marketplace/Marketplace.vue?vue&type=template&id=5776cc38
 
 var _hoisted_1 = {
   class: "row marketplaceActions",
@@ -221,7 +222,7 @@ function render(_ctx, _cache, $props, $setup, $data, $options) {
     })
   })], 8, _hoisted_5)])) : Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createCommentVNode"])("", true)], 512);
 }
-// CONCATENATED MODULE: ./plugins/Marketplace/vue/src/Marketplace/Marketplace.vue?vue&type=template&id=1547a42f
+// CONCATENATED MODULE: ./plugins/Marketplace/vue/src/Marketplace/Marketplace.vue?vue&type=template&id=5776cc38
 
 // EXTERNAL MODULE: external "CoreHome"
 var external_CoreHome_ = __webpack_require__("19dc");
@@ -292,85 +293,113 @@ var _window = window,
     });
   },
   created: function created() {
-    function syncMaxHeight2(selector) {
-      if (!selector) {
-        return;
-      }
-
+    var addCardClickHandler = function addCardClickHandler(selector) {
       var $nodes = $(selector);
 
       if (!$nodes || !$nodes.length) {
         return;
       }
 
-      var maxh3 = undefined;
-      var maxMeta = undefined;
-      var maxFooter = undefined;
-      var nodesToUpdate = [];
-      var lastTop = 0;
       $nodes.each(function (index, node) {
-        var $node = $(node);
-
-        var _$node$offset = $node.offset(),
-            top = _$node$offset.top;
-
-        if (lastTop !== top) {
-          nodesToUpdate = [];
-          lastTop = top;
-          maxh3 = undefined;
-          maxMeta = undefined;
-          maxFooter = undefined;
-        }
-
-        nodesToUpdate.push($node);
-        var heightH3 = $node.find('h3').height();
-        var heightMeta = $node.find('.metadata').height();
-        var heightFooter = $node.find('.footer').height();
-
-        if (!maxh3) {
-          maxh3 = heightH3;
-        } else if (maxh3 < heightH3) {
-          maxh3 = heightH3;
-        }
-
-        if (!maxMeta) {
-          maxMeta = heightMeta;
-        } else if (maxMeta < heightMeta) {
-          maxMeta = heightMeta;
-        }
-
-        if (!maxFooter) {
-          maxFooter = heightFooter;
-        } else if (maxFooter < heightFooter) {
-          maxFooter = heightFooter;
-        }
-
-        $.each(nodesToUpdate, function (i, $nodeToUpdate) {
-          if (maxh3) {
-            $nodeToUpdate.find('h3').height("".concat(maxh3, "px"));
+        var $card = $(node);
+        $card.off('click.cardClick');
+        $card.on('click.cardClick', function (event) {
+          // check if the target is a link or is a descendant of a link
+          // to skip direct clicks on links within the card, we want those honoured
+          if ($(event.target).closest('a').length) {
+            return;
           }
 
-          if (maxMeta) {
-            $nodeToUpdate.find('.metadata').height("".concat(maxMeta, "px"));
-          }
+          var $titleLink = $card.find('a.card-title-link');
 
-          if (maxFooter) {
-            $nodeToUpdate.find('.footer').height("".concat(maxFooter, "px"));
+          if ($titleLink) {
+            event.stopPropagation();
+            $titleLink.trigger('click');
           }
         });
       });
-    }
+    };
 
-    Object(external_commonjs_vue_commonjs2_vue_root_Vue_["nextTick"])(function () {
-      // Keeps the plugin descriptions the same height
-      var descriptions = $('.marketplace .plugin .description');
-      descriptions.dotdotdot({
-        after: 'a.more',
-        watch: 'window'
+    var shrinkDescriptionIfMultilineTitle = Object(external_CoreHome_["debounce"])(function (selector) {
+      var $nodes = $(selector);
+
+      if (!$nodes || !$nodes.length) {
+        return;
+      }
+
+      $nodes.each(function (index, node) {
+        var $card = $(node);
+        var $titleText = $card.find('.card-title');
+        var $alertText = $card.find('.card-content-bottom .alert');
+        var hasDownloads = $card.hasClass('card-with-downloads');
+        var titleLines = 1;
+
+        if ($titleText.length) {
+          var elHeight = +$titleText.height();
+          var lineHeight = +$titleText.css('line-height').replace('px', '');
+
+          if (lineHeight) {
+            var _Math$ceil;
+
+            titleLines = (_Math$ceil = Math.ceil(elHeight / lineHeight)) !== null && _Math$ceil !== void 0 ? _Math$ceil : 1;
+          }
+        }
+
+        var alertLines = 0;
+
+        if ($alertText.length) {
+          var _elHeight = +$alertText.height();
+
+          var _lineHeight = +$alertText.css('line-height').replace('px', '');
+
+          if (_lineHeight) {
+            var _Math$ceil2;
+
+            alertLines = (_Math$ceil2 = Math.ceil(_elHeight / _lineHeight)) !== null && _Math$ceil2 !== void 0 ? _Math$ceil2 : 1;
+          }
+        }
+
+        var $cardDescription = $card.find('.card-description');
+
+        if ($cardDescription.length) {
+          var cardDescription = $cardDescription[0];
+          var clampedLines = 0; // a bit convoluted logic, but this is what's been arrived at with a designer
+          // and via testing in browser
+          //
+          // a) visible downloads count
+          //    -> clamp to 2 lines if title is 2 lines or more or alert is 2 lines or more
+          //       or together are more than 3 lines
+          //    -> clamp to 1 line if title is over 2 lines and alert is over 2 lines simultaneously
+          // b) no downloads count (i.e. a premium plugin)
+          //    -> clamp to 2 lines if sum of lines for title and notification is over 4
+
+          if (hasDownloads) {
+            if (titleLines >= 2 || alertLines > 2 || titleLines + alertLines >= 4) {
+              clampedLines = 2;
+            }
+
+            if (titleLines + alertLines >= 5) {
+              clampedLines = 1;
+            }
+          } else if (titleLines + alertLines >= 5) {
+            clampedLines = 2;
+          }
+
+          if (clampedLines) {
+            cardDescription.setAttribute('data-clamp', "".concat(clampedLines));
+          } else {
+            cardDescription.removeAttribute('data-clamp');
+          }
+        }
       });
-      external_CoreHome_["Matomo"].helper.compileVueDirectives(descriptions); // have to recompile any vue directives
-
-      syncMaxHeight2('.marketplace .plugin');
+    }, 100);
+    Object(external_commonjs_vue_commonjs2_vue_root_Vue_["nextTick"])(function () {
+      var cardSelector = '.marketplace .card-holder';
+      addCardClickHandler(cardSelector);
+      shrinkDescriptionIfMultilineTitle(cardSelector);
+      $(window).resize(function () {
+        shrinkDescriptionIfMultilineTitle(cardSelector);
+      });
     });
   },
   methods: {
@@ -744,6 +773,169 @@ DefaultLicenseKeyFieldsvue_type_script_lang_ts.render = DefaultLicenseKeyFieldsv
 LicenseKeyvue_type_script_lang_ts.render = LicenseKeyvue_type_template_id_39c51746_render
 
 /* harmony default export */ var LicenseKey = (LicenseKeyvue_type_script_lang_ts);
+// CONCATENATED MODULE: ./node_modules/@vue/cli-plugin-babel/node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/@vue/cli-plugin-babel/node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist/templateLoader.js??ref--6!./node_modules/@vue/cli-service/node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist??ref--0-1!./plugins/Marketplace/vue/src/ManageLicenseKey/ManageLicenseKey.vue?vue&type=template&id=50b87c40
+
+var ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_1 = ["innerHTML"];
+var ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_2 = {
+  class: "manage-license-key-input"
+};
+var ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_3 = {
+  class: "ui-confirm",
+  id: "confirmRemoveLicense",
+  ref: "confirmRemoveLicense"
+};
+var ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_4 = ["value"];
+var ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_5 = ["value"];
+function ManageLicenseKeyvue_type_template_id_50b87c40_render(_ctx, _cache, $props, $setup, $data, $options) {
+  var _component_Field = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["resolveComponent"])("Field");
+
+  var _component_SaveButton = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["resolveComponent"])("SaveButton");
+
+  var _component_ActivityIndicator = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["resolveComponent"])("ActivityIndicator");
+
+  var _component_ContentBlock = Object(external_commonjs_vue_commonjs2_vue_root_Vue_["resolveComponent"])("ContentBlock");
+
+  return Object(external_commonjs_vue_commonjs2_vue_root_Vue_["openBlock"])(), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementBlock"])(external_commonjs_vue_commonjs2_vue_root_Vue_["Fragment"], null, [Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createVNode"])(_component_ContentBlock, {
+    "content-title": _ctx.translate('Marketplace_LicenseKey'),
+    class: "manage-license-key"
+  }, {
+    default: Object(external_commonjs_vue_commonjs2_vue_root_Vue_["withCtx"])(function () {
+      return [Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementVNode"])("div", {
+        class: "manage-license-key-intro",
+        innerHTML: _ctx.$sanitize(_ctx.manageLicenseKeyIntro)
+      }, null, 8, ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_1), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementVNode"])("div", ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_2, [Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createVNode"])(_component_Field, {
+        uicontrol: "text",
+        name: "license_key",
+        modelValue: _ctx.licenseKey,
+        "onUpdate:modelValue": _cache[0] || (_cache[0] = function ($event) {
+          return _ctx.licenseKey = $event;
+        }),
+        placeholder: _ctx.licenseKeyPlaceholder,
+        "full-width": true
+      }, null, 8, ["modelValue", "placeholder"])]), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createVNode"])(_component_SaveButton, {
+        onConfirm: _cache[1] || (_cache[1] = function ($event) {
+          return _ctx.updateLicense();
+        }),
+        value: _ctx.saveButtonText,
+        disabled: !_ctx.licenseKey || _ctx.isUpdating,
+        id: "submit_license_key"
+      }, null, 8, ["value", "disabled"]), _ctx.hasValidLicense ? (Object(external_commonjs_vue_commonjs2_vue_root_Vue_["openBlock"])(), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createBlock"])(_component_SaveButton, {
+        key: 0,
+        id: "remove_license_key",
+        onConfirm: _cache[2] || (_cache[2] = function ($event) {
+          return _ctx.removeLicense();
+        }),
+        disabled: _ctx.isUpdating,
+        value: _ctx.translate('General_Remove')
+      }, null, 8, ["disabled", "value"])) : Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createCommentVNode"])("", true), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createVNode"])(_component_ActivityIndicator, {
+        loading: _ctx.isUpdating
+      }, null, 8, ["loading"])];
+    }),
+    _: 1
+  }, 8, ["content-title"]), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementVNode"])("div", ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_3, [Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementVNode"])("h2", null, Object(external_commonjs_vue_commonjs2_vue_root_Vue_["toDisplayString"])(_ctx.translate('Marketplace_ConfirmRemoveLicense')), 1), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementVNode"])("input", {
+    role: "yes",
+    type: "button",
+    value: _ctx.translate('General_Yes')
+  }, null, 8, ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_4), Object(external_commonjs_vue_commonjs2_vue_root_Vue_["createElementVNode"])("input", {
+    role: "no",
+    type: "button",
+    value: _ctx.translate('General_No')
+  }, null, 8, ManageLicenseKeyvue_type_template_id_50b87c40_hoisted_5)], 512)], 64);
+}
+// CONCATENATED MODULE: ./plugins/Marketplace/vue/src/ManageLicenseKey/ManageLicenseKey.vue?vue&type=template&id=50b87c40
+
+// CONCATENATED MODULE: ./node_modules/@vue/cli-plugin-typescript/node_modules/cache-loader/dist/cjs.js??ref--14-0!./node_modules/babel-loader/lib!./node_modules/@vue/cli-plugin-typescript/node_modules/ts-loader??ref--14-2!./node_modules/@vue/cli-service/node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist??ref--0-1!./plugins/Marketplace/vue/src/ManageLicenseKey/ManageLicenseKey.vue?vue&type=script&lang=ts
+
+
+
+/* harmony default export */ var ManageLicenseKeyvue_type_script_lang_ts = (Object(external_commonjs_vue_commonjs2_vue_root_Vue_["defineComponent"])({
+  props: {
+    hasValidLicenseKey: Boolean
+  },
+  components: {
+    Field: external_CorePluginsAdmin_["Field"],
+    ContentBlock: external_CoreHome_["ContentBlock"],
+    SaveButton: external_CorePluginsAdmin_["SaveButton"],
+    ActivityIndicator: external_CoreHome_["ActivityIndicator"]
+  },
+  data: function data() {
+    return {
+      licenseKey: '',
+      hasValidLicense: this.hasValidLicenseKey,
+      isUpdating: false
+    };
+  },
+  methods: {
+    updateLicenseKey: function updateLicenseKey(action, licenseKey, onSuccessMessage) {
+      var _this = this;
+
+      external_CoreHome_["NotificationsStore"].remove('ManageLicenseKeySuccess');
+      external_CoreHome_["AjaxHelper"].post({
+        module: 'API',
+        method: "Marketplace.".concat(action),
+        format: 'JSON'
+      }, {
+        licenseKey: this.licenseKey
+      }, {
+        withTokenInUrl: true
+      }).then(function (response) {
+        _this.isUpdating = false;
+
+        if (response && response.value) {
+          external_CoreHome_["NotificationsStore"].show({
+            id: 'ManageLicenseKeySuccess',
+            message: onSuccessMessage,
+            context: 'success',
+            type: 'toast'
+          });
+          _this.hasValidLicense = action !== 'deleteLicenseKey';
+          _this.licenseKey = '';
+        }
+      }, function () {
+        _this.isUpdating = false;
+      });
+    },
+    removeLicense: function removeLicense() {
+      var _this2 = this;
+
+      external_CoreHome_["Matomo"].helper.modalConfirm(this.$refs.confirmRemoveLicense, {
+        yes: function yes() {
+          _this2.isUpdating = true;
+
+          _this2.updateLicenseKey('deleteLicenseKey', '', Object(external_CoreHome_["translate"])('Marketplace_LicenseKeyDeletedSuccess'));
+        }
+      });
+    },
+    updateLicense: function updateLicense() {
+      this.isUpdating = true;
+      this.updateLicenseKey('saveLicenseKey', this.licenseKey, Object(external_CoreHome_["translate"])('Marketplace_LicenseKeyActivatedSuccess'));
+    }
+  },
+  computed: {
+    manageLicenseKeyIntro: function manageLicenseKeyIntro() {
+      var marketplaceLink = "?".concat(external_CoreHome_["MatomoUrl"].stringify(Object.assign(Object.assign({}, external_CoreHome_["MatomoUrl"].urlParsed.value), {}, {
+        module: 'Marketplace',
+        action: 'overview'
+      })));
+      return Object(external_CoreHome_["translate"])('Marketplace_ManageLicenseKeyIntro', "<a href=\"".concat(marketplaceLink, "\">"), '</a>', Object(external_CoreHome_["externalLink"])('https://shop.matomo.org/my-account'), '</a>');
+    },
+    licenseKeyPlaceholder: function licenseKeyPlaceholder() {
+      return this.hasValidLicense ? Object(external_CoreHome_["translate"])('Marketplace_LicenseKeyIsValidShort') : Object(external_CoreHome_["translate"])('Marketplace_LicenseKey');
+    },
+    saveButtonText: function saveButtonText() {
+      return this.hasValidLicense ? Object(external_CoreHome_["translate"])('CoreUpdater_UpdateTitle') : Object(external_CoreHome_["translate"])('Marketplace_ActivateLicenseKey');
+    }
+  }
+}));
+// CONCATENATED MODULE: ./plugins/Marketplace/vue/src/ManageLicenseKey/ManageLicenseKey.vue?vue&type=script&lang=ts
+ 
+// CONCATENATED MODULE: ./plugins/Marketplace/vue/src/ManageLicenseKey/ManageLicenseKey.vue
+
+
+
+ManageLicenseKeyvue_type_script_lang_ts.render = ManageLicenseKeyvue_type_template_id_50b87c40_render
+
+/* harmony default export */ var ManageLicenseKey = (ManageLicenseKeyvue_type_script_lang_ts);
 // CONCATENATED MODULE: ./node_modules/@vue/cli-plugin-babel/node_modules/cache-loader/dist/cjs.js??ref--12-0!./node_modules/@vue/cli-plugin-babel/node_modules/thread-loader/dist/cjs.js!./node_modules/babel-loader/lib!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist/templateLoader.js??ref--6!./node_modules/@vue/cli-service/node_modules/cache-loader/dist/cjs.js??ref--0-0!./node_modules/@vue/cli-service/node_modules/vue-loader-v16/dist??ref--0-1!./plugins/Marketplace/vue/src/GetNewPlugins/GetNewPlugins.vue?vue&type=template&id=7f2da682
 
 var GetNewPluginsvue_type_template_id_7f2da682_hoisted_1 = {
@@ -1478,6 +1670,7 @@ RichMenuButtonvue_type_script_lang_ts.render = RichMenuButtonvue_type_template_i
  * @link https://matomo.org
  * @license http://www.gnu.org/licenses/gpl-3.0.html GPL v3 or later
  */
+
 
 
 

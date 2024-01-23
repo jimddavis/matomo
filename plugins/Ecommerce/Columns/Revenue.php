@@ -43,7 +43,7 @@ class Revenue extends BaseConversion
         $segment->setSegment('revenueOrder');
         $segment->setSqlSegment('log_conversion.idvisit');
         $segment->setSqlFilter(function ($valueToMatch, $sqlField, $matchType) {
-            return $this->getRevenueQuery($valueToMatch, $sqlField , $matchType, 0);
+            return $this->getRevenueQuery($valueToMatch, $sqlField, $matchType, 0);
         });
         $segmentsList->addSegment($dimensionSegmentFactory->createSegment($segment));
 
@@ -53,11 +53,10 @@ class Revenue extends BaseConversion
         $segment->setName(Piwik::translate('Ecommerce_RevenueLeftInCart'));
         $segment->setSegment('revenueAbandonedCart');
         $segment->setSqlSegment('log_conversion.idvisit');
-        $segment->setSqlFilter(function ($valueToMatch, $sqlField , $matchType) {
-           return $this->getRevenueQuery($valueToMatch, $sqlField , $matchType,-1);
+        $segment->setSqlFilter(function ($valueToMatch, $sqlField, $matchType) {
+            return $this->getRevenueQuery($valueToMatch, $sqlField, $matchType, -1);
         });
         $segmentsList->addSegment($dimensionSegmentFactory->createSegment($segment));
-
     }
 
     /**
@@ -68,7 +67,7 @@ class Revenue extends BaseConversion
      * @param false $cart
      * @return array
      */
-    private function getRevenueQuery($valueToMatch, $sqlField , $matchType, $idGoal)
+    private function getRevenueQuery($valueToMatch, $sqlField, $matchType, $idGoal)
     {
         //supported operator type
         $supportType = [
@@ -92,7 +91,7 @@ class Revenue extends BaseConversion
         $sql = " SELECT idvisit from {$table} WHERE (idgoal = {$idGoal} and revenue {$matchType} ?) ";
         return [
           'SQL'  => $sql,
-          'bind' =>(float)$valueToMatch,
+          'bind' => (float)$valueToMatch,
         ];
     }
 

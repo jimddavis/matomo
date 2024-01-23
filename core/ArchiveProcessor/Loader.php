@@ -125,7 +125,7 @@ class Loader
         // invalidate existing archives before we start archiving in case data was tracked in the past. if the archive is
         // made invalid, we will correctly re-archive below.
         if ($this->invalidateBeforeArchiving
-          && Rules::isBrowserTriggerEnabled()
+            && Rules::isBrowserTriggerEnabled()
         ) {
             $this->invalidatedReportsIfNeeded();
         }
@@ -206,8 +206,7 @@ class Loader
         $doneFlag = Rules::getDoneStringFlagFor([$this->params->getSite()->getId()], $this->params->getSegment(),
           $this->params->getPeriod()->getLabel(), $this->params->getRequestedPlugin());
 
-        return $this->params->getPeriod()->getDateStart()->toString() . $this->params->getPeriod()->getDateEnd()->toString() .'.'. $doneFlag;
-
+        return $this->params->getPeriod()->getDateStart()->toString() . $this->params->getPeriod()->getDateEnd()->toString() . '.' . $doneFlag;
     }
 
     /**
@@ -516,7 +515,7 @@ class Loader
 
         $segmentArchiveStartDate = $segmentArchiving->getReArchiveSegmentStartDate($segmentInfo);
 
-        if ($segmentArchiveStartDate !==null && $segmentArchiveStartDate->isLater($params->getPeriod()->getDateEnd()->getEndOfDay())) {
+        if ($segmentArchiveStartDate !== null && $segmentArchiveStartDate->isLater($params->getPeriod()->getDateEnd()->getEndOfDay())) {
             $doneFlag = Rules::getDoneStringFlagFor(
                 [$params->getSite()->getId()],
                 $params->getSegment(),

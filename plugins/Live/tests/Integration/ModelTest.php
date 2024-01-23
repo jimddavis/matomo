@@ -51,7 +51,7 @@ class ModelTest extends IntegrationTestCase
     public function test_getStandAndEndDate_usesNowWhenEndDateOutOfRange()
     {
         $model = new Model();
-        list($dateStart, $dateEnd) = $model->getStartAndEndDate($idSite = 1, 'year', date('Y').'-01-01');
+        list($dateStart, $dateEnd) = $model->getStartAndEndDate($idSite = 1, 'year', date('Y') . '-01-01');
 
         $validDates = $this->getValidNowDates();
 
@@ -504,7 +504,7 @@ class ModelTest extends IntegrationTestCase
         $this->assertEquals(array('2012-02-19 04:01:00 2012-02-20 04:01:00', '2012-02-12 04:01:00 2012-02-19 04:00:59', '2012-01-13 04:01:00 2012-02-12 04:00:59', '2011-01-01 04:01:00 2012-01-13 04:00:59', ' 2011-01-01 04:00:59'), $dates);
     }
 
-    private function splitDatesIntoMultipleQueries($startDate, $endDate, $limit, $offset, $order='desc')
+    private function splitDatesIntoMultipleQueries($startDate, $endDate, $limit, $offset, $order = 'desc')
     {
         if ($startDate) {
             $startDate = Date::factory($startDate);
@@ -515,7 +515,9 @@ class ModelTest extends IntegrationTestCase
         $model = new Model();
         $queries = $model->splitDatesIntoMultipleQueries($startDate, $endDate, $limit, $offset, $order);
 
-        return array_map(function ($query) { return ($query[0] ? $query[0]->getDatetime() : '') . ' ' . ($query[1] ? $query[1]->getDatetime() : ''); }, $queries);
+        return array_map(function ($query) {
+            return ($query[0] ? $query[0]->getDatetime() : '') . ' ' . ($query[1] ? $query[1]->getDatetime() : '');
+        }, $queries);
     }
 
     protected function setSuperUser()

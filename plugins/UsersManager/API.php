@@ -351,18 +351,25 @@ class API extends \Piwik\Plugin\API
      */
     public function getUsersPlusRole($idSite, $limit = null, $offset = 0, $filter_search = null, $filter_access = null, $filter_status = null)
     {
-        if (!$this->isUserHasAdminAccessTo($idSite)) {
+        if (Piwik::isUserIsAnonymous()) {
+            // anonymous user should never see any results.
+            Common::sendHeader('X-Matomo-Total-Results: 0');
+            return [];
+        } else if (!$this->isUserHasAdminAccessTo($idSite)) {
             // if the user is not an admin to $idSite, they can only see their own user
             if ($offset > 1) {
                 Common::sendHeader('X-Matomo-Total-Results: 1');
                 return [];
             }
 
+            $users = [];
             $user = $this->model->getUser($this->access->getLogin());
-            $user['role'] = $this->access->getRoleForSite($idSite);
-            $user['capabilities'] = $this->access->getCapabilitiesForSite($idSite);
-            $users = [$user];
-            $totalResults = 1;
+            if ($user) {
+                $user['role'] = $this->access->getRoleForSite($idSite);
+                $user['capabilities'] = $this->access->getCapabilitiesForSite($idSite);
+                $users = [$user];
+            }
+            $totalResults = count($users);
         } else {
             // if the current user is not the superuser, only select users that have access to a site this user
             // has admin access to
@@ -778,9 +785,9 @@ class API extends \Piwik\Plugin\API
         UsersManager::dieIfUsersAdminIsDisabled();
 
         // check password confirmation only when using session auth
-       if (Common::getRequestVar('force_api_session', 0)) {
-           $this->confirmCurrentUserPassword($passwordConfirmation);
-       }
+        if (Common::getRequestVar('force_api_session', 0)) {
+            $this->confirmCurrentUserPassword($passwordConfirmation);
+        }
 
         if (empty($expiryInDays)) {
             $expiryInDays = Config\GeneralConfig::getConfigValue('default_invite_user_token_expiry_days');
@@ -1611,11 +1618,10 @@ class API extends \Piwik\Plugin\API
          */
         Piwik::postEvent('UsersManager.inviteUser.generateInviteLinkToken', [$userLogin, $user['email']]);
 
-        return SettingsPiwik::getPiwikUrl().'index.php?'.Url::getQueryStringFromParameters([
+        return SettingsPiwik::getPiwikUrl() . 'index.php?' . Url::getQueryStringFromParameters([
                 'module' => Piwik::getLoginPluginName(),
                 'action' => 'acceptInvitation',
                 'token'  => $token,
             ]);
     }
-
 }

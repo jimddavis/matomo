@@ -83,19 +83,26 @@ class ApiTest extends IntegrationTestCase
 
         Piwik::addAction(APIScheduledReports::GET_RENDERER_INSTANCE_EVENT, function (&$reportRenderer, $reportType, $outputType, $report) {
             if ($reportType == 'dummyrepor') { // apparently this gets cut off
-                $reportRenderer = new class() extends ReportRenderer {
-                    public function setLocale($locale) {}
+                $reportRenderer = new class () extends ReportRenderer {
+                    public function setLocale($locale) {
+                    }
                     public function sendToDisk($filename) {
                         $path = PIWIK_INCLUDE_PATH . '/tmp/' . $filename;
                         file_put_contents($path, 'dummyreportdata');
                         return $path;
                     }
-                    public function sendToBrowserDownload($filename) {}
-                    public function sendToBrowserInline($filename) {}
-                    public function getRenderedReport() {}
-                    public function renderFrontPage($reportTitle, $prettyDate, $description, $reportMetadata, $segment) {}
-                    public function renderReport($processedReport) {}
-                    public function getAttachments($report, $processedReports, $prettyDate) {}
+                    public function sendToBrowserDownload($filename) {
+                    }
+                    public function sendToBrowserInline($filename) {
+                    }
+                    public function getRenderedReport() {
+                    }
+                    public function renderFrontPage($reportTitle, $prettyDate, $description, $reportMetadata, $segment) {
+                    }
+                    public function renderReport($processedReport) {
+                    }
+                    public function getAttachments($report, $processedReports, $prettyDate) {
+                    }
                 };
             }
         });
@@ -452,7 +459,6 @@ class ApiTest extends IntegrationTestCase
         $this->assertEquals($expectedTasks, $tasks);
 
         \Piwik\Plugins\ScheduledReports\API::unsetInstance();
-
     }
 
     /**

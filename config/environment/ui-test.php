@@ -2,6 +2,8 @@
 
 use Piwik\Container\Container;
 use Piwik\Container\StaticContainer;
+use Piwik\DataTable;
+use Piwik\Plugin\Visualization;
 use Piwik\Plugins\Diagnostics\Diagnostic\FileIntegrityCheck;
 use Piwik\Plugins\Diagnostics\Diagnostic\PhpVersionCheck;
 use Piwik\Plugins\Diagnostics\Diagnostic\RequiredPrivateDirectories;
@@ -15,6 +17,11 @@ return [
     // to one of these blacklists
     'tests.ui.url_normalizer_blacklist.api' => [],
     'tests.ui.url_normalizer_blacklist.controller' => [],
+
+    // disable check for plugin updates during UI tests, allow for override
+    'dev.disable_plugin_update_checks' => Piwik\DI::decorate(function ($previous, Container $c) {
+        return !$c->get('test.vars.forceEnablePluginUpdateChecks');
+    }),
 
     'twig.cache' => function (\Piwik\Container\Container $container) {
         $templatesPath = $container->get('path.tmp.templates');
@@ -104,6 +111,31 @@ return [
 
         ['Controller.RssWidget.rssPiwik.end', Piwik\DI::value(function (&$result, $parameters) {
             $result = '';
+        })],
+
+        ['Visualization.beforeRender', Piwik\DI::value(function (Visualization $visualization) {
+            $dataStates = StaticContainer::get('test.vars.forceDataStates');
+
+            if (!is_array($dataStates) || [] === $dataStates) {
+                return;
+            }
+
+            $dataTable = $visualization->getDataTable();
+
+            if (!($dataTable instanceof DataTable\Map)) {
+                return;
+            }
+
+            foreach ($dataTable->getDataTables() as $date => $subTable) {
+                if (!isset($dataStates[$date])) {
+                    continue;
+                }
+
+                $subTable->setMetadata(
+                    DataTable::ARCHIVE_STATE_METADATA_NAME,
+                    $dataStates[$date]
+                );
+            }
         })],
 
         \Piwik\Tests\Framework\XssTesting::getJavaScriptAddEvent(),

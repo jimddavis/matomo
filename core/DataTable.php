@@ -168,6 +168,9 @@ class DataTable implements DataTableInterface, \IteratorAggregate, \ArrayAccess
 {
     const MAX_DEPTH_DEFAULT = 15;
 
+    /** Name for metadata that describes the archiving state of a report */
+    const ARCHIVE_STATE_METADATA_NAME = 'archive_state';
+
     /** Name for metadata that describes when a report was archived. */
     const ARCHIVED_DATE_METADATA_NAME = 'ts_archived';
 
@@ -220,6 +223,10 @@ class DataTable implements DataTableInterface, \IteratorAggregate, \ArrayAccess
     const EXTRA_PROCESSED_METRICS_METADATA_NAME = 'extra_processed_metrics';
 
     const ROW_IDENTIFIER_METADATA_NAME = 'rowIdentifier';
+
+    const ID_ARCHIVE_STATE_COMPLETE = 'complete';
+    const ID_ARCHIVE_STATE_INCOMPLETE = 'incomplete';
+    const ID_ARCHIVE_STATE_INVALIDATED = 'invalidated';
 
     /**
      * Maximum nesting level.
@@ -747,7 +754,7 @@ class DataTable implements DataTableInterface, \IteratorAggregate, \ArrayAccess
      */
     public function getEmptyClone($keepFilters = true)
     {
-        $clone = new DataTable;
+        $clone = new DataTable();
         if ($keepFilters) {
             $clone->queuedFilters = $this->queuedFilters;
         }
@@ -1040,7 +1047,6 @@ class DataTable implements DataTableInterface, \IteratorAggregate, \ArrayAccess
         if (!is_null($this->totalsRow)) {
             $this->totalsRow->deleteMetadata($name);
         }
-
     }
 
     /**
@@ -1743,7 +1749,7 @@ class DataTable implements DataTableInterface, \IteratorAggregate, \ArrayAccess
      * @param bool|string $name The metadata name (omit to delete all metadata)
      * @return bool True if the requested metadata was deleted
      */
-    public function deleteMetadata($name = false) : bool
+    public function deleteMetadata($name = false): bool
     {
         if ($name === false) {
             $this->metadata = [];
@@ -2040,7 +2046,7 @@ class DataTable implements DataTableInterface, \IteratorAggregate, \ArrayAccess
         }
         $thisRow = $this->getFirstRow();
         if ($thisRow === false) {
-            $thisRow = new Row;
+            $thisRow = new Row();
             $this->addRow($thisRow);
         }
         $thisRow->sumRow($row, $copyMeta = true, $this->getMetadata(self::COLUMN_AGGREGATION_OPS_METADATA_NAME));

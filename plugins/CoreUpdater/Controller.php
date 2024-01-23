@@ -140,7 +140,8 @@ class Controller extends \Piwik\Plugin\Controller
             if (!empty($incompatiblePlugins) && $this->marketplacePlugins) {
                 $marketplacePlugins = $this->marketplacePlugins->getAllAvailablePluginNames();
             }
-        } catch (\Exception $e) {}
+        } catch (\Exception $e) {
+        }
 
         $view->marketplacePlugins = $marketplacePlugins;
         $view->incompatiblePlugins = $incompatiblePlugins;
@@ -178,7 +179,6 @@ class Controller extends \Piwik\Plugin\Controller
         }
 
         $view->feedbackMessages = $messages;
-        $this->addCustomLogoInfo($view);
         $result = $view->render();
 
         return $result;
@@ -440,5 +440,4 @@ class Controller extends \Piwik\Plugin\Controller
     {
         return PluginManager::getInstance()->getIncompatiblePlugins($piwikVersion);
     }
-
 }

@@ -11,6 +11,7 @@ namespace Piwik\DataAccess;
 use Piwik\ArchiveProcessor\Parameters;
 use Piwik\Common;
 use Piwik\Config;
+use Piwik\Config\DatabaseConfig;
 use Piwik\Container\StaticContainer;
 use Piwik\DataArray;
 use Piwik\Date;
@@ -316,7 +317,7 @@ class LogAggregator
             $all = $readerDb->fetchAll($segmentSelectSql, $segmentSelectBind);
             if (!empty($all)) {
                 // we're not using batchinsert since this would not support the reader DB.
-                $readerDb->query('INSERT INTO ' . $table . ' VALUES ('.implode('),(', array_column($all, 'idvisit')).')');
+                $readerDb->query('INSERT INTO ' . $table . ' VALUES (' . implode('),(', array_column($all, 'idvisit')) . ')');
             }
             return;
         }
@@ -364,6 +365,17 @@ class LogAggregator
             }
 
             foreach ($logTablesProvider->getAllLogTables() as $logTable) {
+
+                // In cases where log tables are right joined to the segment temporary table it is better for
+                // performance to allow the where condition to be applied, otherwise without a range limit the entire
+                // log table will be used
+                foreach ($from as $fromJoin) {
+                    if (!empty($fromJoin['table']) && $fromJoin['table'] === $logTable->getName() &&
+                        !empty($fromJoin['join']) && strtoupper($fromJoin['join']) === 'RIGHT JOIN') {
+                        continue 2;
+                    }
+                }
+
                 if ($logTable->getDateTimeColumn()) {
                     $whereTest = $this->getWhereStatement($logTable->getName(), $logTable->getDateTimeColumn());
                     if (strpos($where, $whereTest) === 0) {
@@ -378,13 +390,16 @@ class LogAggregator
                     }
                 }
             }
-
         }
 
         $query = $segment->getSelectQuery($select, $from, $where, $bind, $orderBy, $groupBy, $limit, $offset);
 
         if (is_array($query) && array_key_exists('sql', $query)) {
             $query['sql'] = DbHelper::addOriginHintToQuery($query['sql'], $this->queryOriginHint, $this->dateStart, $this->dateEnd, $this->sites, $this->segment);
+            if (DatabaseConfig::getConfigValue('enable_first_table_join_prefix'))
+            {
+                $query['sql'] = DbHelper::addJoinPrefixHintToQuery($query['sql'], (is_array($from) ? reset($from) : $from));
+            }
         }
 
         return $query;
@@ -401,6 +416,22 @@ class LogAggregator
     private function createSegmentTable(): string
     {
         $segmentTable = $this->getSegmentTmpTableName();
+        $segmentSql = $this->getSegmentTableSql();
+
+        $this->createTemporaryTable($segmentTable, $segmentSql['sql'], $segmentSql['bind']);
+
+        return $segmentTable;
+    }
+
+    /**
+     * Return the SQL query used to populate the segment temporary table
+     *
+     * @return array
+     * @throws \Piwik\Exception\DI\DependencyException
+     * @throws \Piwik\Exception\DI\NotFoundException
+     */
+    public function getSegmentTableSql(): array
+    {
         $segmentWhere = $this->getWhereStatement('log_visit', 'visit_last_action_time');
         $segmentBind = $this->getGeneralQueryBindParams();
 
@@ -408,13 +439,17 @@ class LogAggregator
         $forceGroupByBackup = $logQueryBuilder->getForcedInnerGroupBySubselect();
         $logQueryBuilder->forceInnerGroupBySubselect(LogQueryBuilder::FORCE_INNER_GROUP_BY_NO_SUBSELECT);
         $segmentSql = $this->segment->getSelectQuery('distinct log_visit.idvisit as idvisit', 'log_visit', $segmentWhere, $segmentBind, 'log_visit.idvisit ASC');
+
+        if (is_array($segmentSql) && array_key_exists('sql', $segmentSql)) {
+            if (DatabaseConfig::getConfigValue('enable_segment_first_table_join_prefix')) {
+                $segmentSql['sql'] = DbHelper::addJoinPrefixHintToQuery($segmentSql['sql'], 'log_visit');
+            }
+        }
+
         $logQueryBuilder->forceInnerGroupBySubselect($forceGroupByBackup);
 
-        $this->createTemporaryTable($segmentTable, $segmentSql['sql'], $segmentSql['bind']);
-
-        return $segmentTable;
+        return $segmentSql;
     }
-
 
     protected function getVisitsMetricFields()
     {
@@ -544,7 +579,8 @@ class LogAggregator
      *                                   A pre-configured ranking query instance that will be used to limit the result.
      *                                   If set, the return value is the array returned by {@link \Piwik\RankingQuery::execute()}.
      * @param bool|string $orderBy       Order By clause to add (e.g. user_id ASC)
-     * @param int $timeLimitInMs         Adds a MAX_EXECUTION_TIME query hint to the query if $timeLimitInMs > 0
+     * @param int $timeLimit             Adds a MAX_EXECUTION_TIME query hint to the query if $timeLimit > 0
+     *                                   for more details see {@link DbHelper::addMaxExecutionTimeHintToQuery}
      *
      * @return mixed A Zend_Db_Statement if `$rankingQuery` isn't supplied, otherwise the result of
      *               {@link \Piwik\RankingQuery::execute()}. Read {@link queryVisitsByDimension() this}
@@ -553,9 +589,39 @@ class LogAggregator
      *                                   ranking query SQL will be immediately executed and the results returned.
      * @api
      */
-    public function queryVisitsByDimension(array $dimensions = array(), $where = false, array $additionalSelects = array(),
-                                           $metrics = false, $rankingQuery = false, $orderBy = false, $timeLimitInMs = -1,
+    public function queryVisitsByDimension(array $dimensions = [], $where = false, array $additionalSelects = [],
+                                           $metrics = false, $rankingQuery = false, $orderBy = false, $timeLimit = -1,
                                            $rankingQueryGenerate = false)
+    {
+        $query = $this->getQueryByDimensionSql($dimensions, $where, $additionalSelects, $metrics, $rankingQuery, $orderBy,
+            $timeLimit, $rankingQueryGenerate);
+
+        // Ranking queries will return the data directly
+        if ($rankingQuery && !$rankingQueryGenerate) {
+            return $query;
+        }
+
+        return $this->getDb()->query($query['sql'], $query['bind']);
+    }
+
+    /**
+     * Build the sql query used to query dimension data
+     *
+     * @param array                     $dimensions
+     * @param bool|string               $where
+     * @param array                     $additionalSelects
+     * @param bool|array                $metrics
+     * @param bool|\Piwik\RankingQuery  $rankingQuery
+     * @param bool|string               $orderBy
+     * @param int                       $timeLimit
+     * @param bool                      $rankingQueryGenerate
+     *
+     * @return array
+     * @throws \Piwik\Exception\DI\DependencyException
+     * @throws \Piwik\Exception\DI\NotFoundException
+     */
+    public function getQueryByDimensionSql(array $dimensions, $where, array $additionalSelects, $metrics, $rankingQuery,
+                                            $orderBy, $timeLimit, $rankingQueryGenerate): array
     {
         $tableName = self::LOG_VISIT_TABLE;
         $availableMetrics = $this->getVisitsMetricFields();
@@ -594,13 +660,13 @@ class LogAggregator
             if ($rankingQueryGenerate) {
                 $query['sql'] = $rankingQuery->generateRankingQuery($query['sql']);
             } else {
-                return $rankingQuery->execute($query['sql'], $query['bind'], $timeLimitInMs);
+                return $rankingQuery->execute($query['sql'], $query['bind'], $timeLimit);
             }
         }
 
-        $query['sql'] = DbHelper::addMaxExecutionTimeHintToQuery($query['sql'], $timeLimitInMs);
+        $query['sql'] = DbHelper::addMaxExecutionTimeHintToQuery($query['sql'], $timeLimit);
 
-        return $this->getDb()->query($query['sql'], $query['bind']);
+        return $query;
     }
 
     protected function getSelectsMetrics($metricsAvailable, $metricsRequested = false)
@@ -772,7 +838,7 @@ class LogAggregator
     {
         $where = "$tableName.$datetimeField >= ?
 				AND $tableName.$datetimeField <= ?
-				AND $tableName.idsite IN (". Common::getSqlStringFieldsArray($this->sites) . ")";
+				AND $tableName.idsite IN (" . Common::getSqlStringFieldsArray($this->sites) . ")";
 
         if (!empty($extraWhere)) {
             $extraWhere = sprintf($extraWhere, $tableName, $tableName);
@@ -876,7 +942,6 @@ class LogAggregator
                     )
                 )
             ),
-
             // FROM ...
             array(
                 "log_conversion_item",
@@ -885,7 +950,6 @@ class LogAggregator
                     "joinOn" => sprintf("log_conversion_item.%s = log_action.idaction", $dimension)
                 )
             ),
-
             // WHERE ... AND ...
             implode(
                 ' AND ',
@@ -896,13 +960,11 @@ class LogAggregator
                     'log_conversion_item.deleted = 0'
                 )
             ),
-
             // GROUP BY ...
             sprintf(
                 "ecommerceType, log_conversion_item.%s",
                 $dimension
             ),
-
             // ORDER ...
             false
         );
@@ -953,7 +1015,8 @@ class LogAggregator
      *                                           If a string is used for this parameter, the table alias is not
      *                                           suffixed (since there is only one column).
      * @param string $secondaryOrderBy      A secondary order by clause for the ranking query
-     * @param int $timeLimitInMs                Adds a MAX_EXECUTION_TIME hint to the query if $timeLimitInMs > 0
+     * @param int $timeLimit                Adds a MAX_EXECUTION_TIME hint to the query if $timeLimit > 0
+     *                                      for more details see {@link DbHelper::addMaxExecutionTimeHintToQuery}
      * @return mixed A Zend_Db_Statement if `$rankingQuery` isn't supplied, otherwise the result of
      *               {@link Piwik\RankingQuery::execute()}. Read [this](#queryEcommerceItems-result-set)
      *               to see what aggregate data is calculated by the query.
@@ -967,7 +1030,7 @@ class LogAggregator
         $rankingQuery = null,
         $joinLogActionOnColumn = false,
         $secondaryOrderBy = null,
-        $timeLimitInMs = -1
+        $timeLimit = -1
     ) {
         $tableName = self::LOG_ACTIONS_TABLE;
         $availableMetrics = $this->getActionsMetricFields();
@@ -1019,10 +1082,10 @@ class LogAggregator
 
             $rankingQuery->addColumn($sumColumns, 'sum');
 
-            return $rankingQuery->execute($query['sql'], $query['bind'], $timeLimitInMs);
+            return $rankingQuery->execute($query['sql'], $query['bind'], $timeLimit);
         }
 
-        $query['sql'] = DbHelper::addMaxExecutionTimeHintToQuery($query['sql'], $timeLimitInMs);
+        $query['sql'] = DbHelper::addMaxExecutionTimeHintToQuery($query['sql'], $timeLimit);
 
         return $this->getDb()->query($query['sql'], $query['bind']);
     }
@@ -1159,7 +1222,7 @@ class LogAggregator
                 ['table' => 'log_link_visit_action', 'tableAlias' => 'logva', 'join' => 'RIGHT JOIN',
                             'joinOn' => 'log_conversion.idvisit = logva.idvisit'],
                 ['table' => 'log_action', 'tableAlias' => 'lac',
-                            'joinOn' => 'logva.'.$linkField.' = lac.idaction']
+                            'joinOn' => 'logva.' . $linkField . ' = lac.idaction']
         ];
 
         $where = $this->getWhereStatement('log_conversion', 'server_time');
@@ -1212,13 +1275,13 @@ class LogAggregator
                 ],
                 [
                     "table" => "log_action",
-                    "joinOn" => "log_action.idaction = log_visit.".$linkField
+                    "joinOn" => "log_action.idaction = log_visit." . $linkField
                 ]
         ];
 
-        $where   = $linkField.' IS NOT NULL AND log_conversion.idgoal >= 0';
+        $where   = $linkField . ' IS NOT NULL AND log_conversion.idgoal >= 0';
         $where   = $this->getWhereStatement($tableName, self::CONVERSION_DATETIME_FIELD, $where);
-        $groupBy = 'log_visit.'.$linkField.', log_conversion.idgoal';
+        $groupBy = 'log_visit.' . $linkField . ', log_conversion.idgoal';
         $orderBy = false;
 
         $query   = $this->generateQuery($select, $from, $where, $groupBy, $orderBy);

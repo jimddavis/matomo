@@ -118,7 +118,9 @@ describe("PrivacyManager", function () {
 
     async function capturePage(screenshotName) {
         await page.waitForNetworkIdle();
-        expect(await page.screenshotSelector('.pageWrap,#notificationContainer,.modal.open')).to.matchImage(screenshotName);
+        const pageWrap = await page.$('.pageWrap,#notificationContainer,.modal.open');
+        const screenshot = await pageWrap.screenshot();
+        expect(screenshot).to.matchImage(screenshotName);
     }
 
     async function captureAnonymizeLogData(screenshotName) {

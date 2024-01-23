@@ -57,7 +57,7 @@ class GenerateIntl extends ConsoleCommand
         }
 
         preg_match_all("~^(.)(.*)$~u", $str, $arr);
-        return mb_strtoupper($arr[1][0]).$arr[2][0];
+        return mb_strtoupper($arr[1][0]) . $arr[2][0];
     }
 
     protected function doExecute(): int
@@ -80,7 +80,7 @@ class GenerateIntl extends ConsoleCommand
 
         $this->checkCurrencies();
 
-        foreach ($matomoLanguages AS $langCode) {
+        foreach ($matomoLanguages as $langCode) {
 
             if ($langCode == 'dev') {
                 continue;
@@ -122,12 +122,12 @@ class GenerateIntl extends ConsoleCommand
             if (empty($translations['Intl']['OriginalLanguageName']) && strpos($transformedLangCode, '-')) {
                 [$language, $territory] = explode('-', $transformedLangCode);
 
-                if (!empty($translations['Intl']['Language_'.$language])) {
+                if (!empty($translations['Intl']['Language_' . $language])) {
 
-                    $originalName = $this->transform($translations['Intl']['Language_'.$language]);
+                    $originalName = $this->transform($translations['Intl']['Language_' . $language]);
 
-                    if (!empty($translations['Intl']['Country_'.$territory])) {
-                        $originalName .= ' (' . $translations['Intl']['Country_'.$territory] . ')';
+                    if (!empty($translations['Intl']['Country_' . $territory])) {
+                        $originalName .= ' (' . $translations['Intl']['Country_' . $territory] . ')';
                     } else {
                         $originalName .= ' (' . strtoupper($language) . ')';
                     }
@@ -161,7 +161,7 @@ class GenerateIntl extends ConsoleCommand
             foreach ($region as $regionCurrencies) {
                 foreach ($regionCurrencies as $currencyCode => $validity) {
                     if (!isset($validity['_to']) && !isset($validity['_tender'])) {
-                       $cldrCurrencies[] = $currencyCode;
+                        $cldrCurrencies[] = $currencyCode;
                     }
                 }
             }
@@ -219,17 +219,16 @@ class GenerateIntl extends ConsoleCommand
                     $territoryData = $territoryData['main']['en']['localeDisplayNames']['territories'] ?? [];
 
                     if (array_key_exists($territory, $territoryData)) {
-                        $englishName .= ' ('.$territoryData[$territory].')';
+                        $englishName .= ' (' . $territoryData[$territory] . ')';
                     } else {
-                        $englishName .= ' ('.strtoupper($language).')';
+                        $englishName .= ' (' . strtoupper($language) . ')';
                     }
                 } catch (\Exception $e) {
-                    $englishName .= ' ('.strtoupper($language).')';
+                    $englishName .= ' (' . strtoupper($language) . ')';
                 }
 
                 return $englishName;
             }
-
         } catch (\Exception $e) {
         }
 
@@ -251,7 +250,7 @@ class GenerateIntl extends ConsoleCommand
                 throw new \Exception();
             }
 
-            foreach ($languageCodes AS $code) {
+            foreach ($languageCodes as $code) {
                 if (!empty($languageData[$code]) && $languageData[$code] != $code) {
                     $translations['Intl']['Language_' . $code] = $this->transform($languageData[$code]);
                 }
@@ -322,7 +321,7 @@ class GenerateIntl extends ConsoleCommand
                 throw new \Exception();
             }
 
-            foreach ($countryCodes AS $code) {
+            foreach ($countryCodes as $code) {
                 if (!empty($territoryData[$code]) && $territoryData[$code] != $code) {
                     $translations['Intl']['Country_' . $code] = $this->transform($territoryData[$code]);
                 }
@@ -370,7 +369,7 @@ class GenerateIntl extends ConsoleCommand
                 7 => 'sun'
             );
 
-            foreach ($days AS $nr => $day) {
+            foreach ($days as $nr => $day) {
                 $translations['Intl']['Day_Min_' . $nr] = $calendarData['days']['format']['short'][$day];
                 $translations['Intl']['Day_Short_' . $nr] = $calendarData['days']['format']['abbreviated'][$day];
                 $translations['Intl']['Day_Long_' . $nr] = $calendarData['days']['format']['wide'][$day];
@@ -497,7 +496,7 @@ class GenerateIntl extends ConsoleCommand
         }
     }
 
-    protected function transformDateFormat($dateFormat, $changes=array())
+    protected function transformDateFormat($dateFormat, $changes = array())
     {
         if(!empty($changes)) {
             $dateFormat = str_replace(array_keys($changes), array_values($changes), $dateFormat);
@@ -664,5 +663,4 @@ class GenerateIntl extends ConsoleCommand
     {
         return str_replace('{0}', $replacement, $string);
     }
-
 }

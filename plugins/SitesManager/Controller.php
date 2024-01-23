@@ -312,7 +312,7 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
         $view->matomoUrl = Url::getCurrentUrlWithoutFileName();
         return $view->render();
     }
-    
+
     private function renderOthersTab($othersInstructions): string
     {
         array_unshift(
@@ -369,9 +369,17 @@ class Controller extends \Piwik\Plugin\ControllerAdmin
             return '';
         }
 
-        $detectedCms = $this->siteContentDetector->getSiteContentDetectionById(reset($detectedCMSes));
+        $detectedCms = null;
 
-        if (null === $detectedCms) {
+        foreach ($detectedCMSes as $detected) {
+            $detectedCms = $this->siteContentDetector->getSiteContentDetectionById($detected);
+
+            if (null !== $detectedCms && !empty($detectedCms::getInstructionUrl())) {
+                break;
+            }
+        }
+
+        if (null === $detectedCms || empty($detectedCms::getInstructionUrl())) {
             return '';
         }
 

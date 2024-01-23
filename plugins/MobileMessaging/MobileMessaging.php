@@ -127,7 +127,7 @@ class MobileMessaging extends \Piwik\Plugin
         $translationKeys[] = 'MobileMessaging_Settings_SuspiciousPhoneNumber';
         $translationKeys[] = 'MobileMessaging_SettingsMenu';
     }
-    
+
     public function validateReportParameters(&$parameters, $reportType)
     {
         if (self::manageEvent($reportType)) {
@@ -224,7 +224,7 @@ class MobileMessaging extends \Piwik\Plugin
      * @param $force
      */
     public function sendReport($reportType, $report, $contents, $filename, $prettyDate, $reportSubject, $reportTitle,
-                               $additionalFiles,  $period, $force)
+                               $additionalFiles, $period, $force)
     {
         if (self::manageEvent($reportType)) {
             $parameters = $report['parameters'];

@@ -60,6 +60,7 @@ class Controller extends PluginController
             'segment'   => $request->getStringParameter('segment', ''),
             'date'      => 'range' === $period ? $date : EvolutionViz::getDateRangeAndLastN($period, $date)[0],
             'format'    => 'original',
+            'flat'      => $request->getIntegerParameter('flat', 0),
             'serialize' => '0',
         ];
 
@@ -74,7 +75,7 @@ class Controller extends PluginController
      * @return string|void
      * @throws \Exception
      */
-    public function getRowEvolutionGraph($dataTable=null)
+    public function getRowEvolutionGraph($dataTable = null)
     {
         $this->checkSitePermission();
 

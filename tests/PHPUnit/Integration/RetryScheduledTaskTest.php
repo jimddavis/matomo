@@ -7,14 +7,17 @@
  */
 
 namespace Piwik\Tests\Integration;
+
+use Piwik\Log\NullLogger;
 use Piwik\Option;
 use Piwik\Scheduler\RetryableException;
-use Piwik\Scheduler\Timetable;
+use Piwik\Scheduler\ScheduledTaskLock;
 use Piwik\Scheduler\Scheduler;
 use Piwik\Scheduler\Task;
+use Piwik\Scheduler\Timetable;
+use Piwik\Tests\Framework\Mock\Concurrency\LockBackend\InMemoryLockBackend;
 use Piwik\Tests\Framework\Mock\PiwikOption;
 use Piwik\Tests\Framework\TestCase\IntegrationTestCase;
-use Piwik\Log\NullLogger;
 
 /**
  * @group Scheduler
@@ -22,7 +25,6 @@ use Piwik\Log\NullLogger;
  */
 class RetryScheduledTaskTest extends IntegrationTestCase
 {
-
     public function testRetryCount()
     {
         $timetable = new Timetable();
@@ -50,7 +52,6 @@ class RetryScheduledTaskTest extends IntegrationTestCase
         $this->assertEquals(2, $timetable->getRetryCount($task2));
         $timetable->clearRetryCount($task2);
         $this->assertEquals(0, $timetable->getRetryCount($task1));
-
     }
 
     public function testTaskIsRetriedIfRetryableExcetionIsThrown()
@@ -76,14 +77,14 @@ class RetryScheduledTaskTest extends IntegrationTestCase
             ->method('loadTasks')
             ->willReturn($tasks);
 
-        $scheduler = new Scheduler($taskLoader, new NullLogger());
+        $scheduler = new Scheduler($taskLoader, new NullLogger(), new ScheduledTaskLock(new InMemoryLockBackend()));
 
         // First run
         $scheduler->run();
         $nextRun = $scheduler->getScheduledTimeForMethod('Piwik\Tests\Integration\RetryScheduledTaskTest', 'exceptionalTask', null);
 
         // Should be rescheduled one hour from now
-        $this->assertEquals($now+3660, $nextRun);
+        $this->assertEquals($now + 3660, $nextRun);
 
         self::resetPiwikOption();
     }
@@ -98,7 +99,7 @@ class RetryScheduledTaskTest extends IntegrationTestCase
 
         // Create task
         $specificSchedule = $this->createPartialMock('Piwik\Scheduler\Schedule\SpecificTime', array('getTime'));
-        $specificSchedule->setScheduledTime($now+50000);
+        $specificSchedule->setScheduledTime($now + 50000);
         $specificSchedule->expects($this->any())
             ->method('getTime')
             ->will($this->returnValue($now));
@@ -110,14 +111,14 @@ class RetryScheduledTaskTest extends IntegrationTestCase
             ->method('loadTasks')
             ->willReturn($tasks);
 
-        $scheduler = new Scheduler($taskLoader, new NullLogger());
+        $scheduler = new Scheduler($taskLoader, new NullLogger(), new ScheduledTaskLock(new InMemoryLockBackend()));
 
         // First run
         $scheduler->run();
         $nextRun = $scheduler->getScheduledTimeForMethod('Piwik\Tests\Integration\RetryScheduledTaskTest', 'normalExceptionTask', null);
 
         // Should not have scheduled for retry
-        $this->assertEquals($now+50000, $nextRun);
+        $this->assertEquals($now + 50000, $nextRun);
 
         self::resetPiwikOption();
     }

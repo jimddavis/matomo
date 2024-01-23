@@ -14,7 +14,7 @@ use Piwik\Archive;
 use Piwik\DataTable;
 use Piwik\Metrics;
 use Piwik\Piwik;
-use DeviceDetector\Parser\Client\Browser AS BrowserParser;
+use DeviceDetector\Parser\Client\Browser as BrowserParser;
 
 /**
  * The DevicesDetection API lets you access reports on your visitors devices, brands, models, Operating system, Browsers.
@@ -189,7 +189,6 @@ class API extends \Piwik\Plugin\API
                 $newDataTable = $this->mergeDataTables($table, $versionDataTables[$label]);
                 $dataTable->addTable($newDataTable, $label);
             }
-
         } else if (!$dataTable->getRowsCount() && $dataTable2->getRowsCount()) {
             $dataTable2->filter('GroupBy', ['label', function ($label) {
                 if (preg_match("/(.+) [0-9]+(?:\.[0-9]+)?$/", $label, $matches)) {
